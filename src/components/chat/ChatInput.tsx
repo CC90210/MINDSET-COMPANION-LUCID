@@ -19,7 +19,7 @@ export default function ChatInput({
     const [message, setMessage] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    const { isLoading, deepDiveEnabled, toggleDeepDive } = useChatStore();
+    const { isLoading, deepDiveMode, toggleDeepDive } = useChatStore();
     const { tier, messagesRemaining } = useSubscriptionStore();
 
     const handleSubmit = () => {
@@ -93,12 +93,12 @@ export default function ChatInput({
                             onClick={toggleDeepDive}
                             className={`
                 p-3 rounded-xl transition-all duration-200
-                ${deepDiveEnabled
+                ${deepDiveMode
                                     ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/30'
                                     : 'bg-background-hover text-foreground-muted hover:text-foreground'
                                 }
               `}
-                            title={deepDiveEnabled ? 'Deep Dive enabled' : 'Enable Deep Dive for longer responses'}
+                            title={deepDiveMode ? 'Deep Dive enabled' : 'Enable Deep Dive for longer responses'}
                         >
                             <Sparkles size={20} />
                         </motion.button>

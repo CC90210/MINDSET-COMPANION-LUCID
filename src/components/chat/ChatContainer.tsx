@@ -20,6 +20,7 @@ import {
 import { generateCCResponse, checkForCrisisKeywords, getCrisisResponse } from '@/lib/gemini';
 
 interface Message {
+    id: string;
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
@@ -35,13 +36,13 @@ export default function ChatContainer() {
         currentConversationId,
         messages,
         isTyping,
-        deepDiveEnabled,
+        deepDiveMode,
         setCurrentConversation,
         setMessages,
         addMessage: addLocalMessage,
         setIsLoading,
         setIsTyping,
-        clearMessages
+        clearChat
     } = useChatStore();
 
     const { tier, setMessagesRemaining, decrementMessages } = useSubscriptionStore();
@@ -76,7 +77,8 @@ export default function ChatContainer() {
         setCurrentConversation(conversationId);
         const msgs = await getMessages(user.uid, conversationId);
 
-        setMessages(msgs.map(m => ({
+        setMessages(msgs.map((m, i) => ({
+            id: `msg-${i}`,
             role: m.role,
             content: m.content,
             timestamp: m.timestamp?.toDate?.() || new Date(),
@@ -96,7 +98,7 @@ export default function ChatContainer() {
 
         const newConvoId = await createConversation(user.uid);
         setCurrentConversation(newConvoId);
-        clearMessages();
+        clearChat();
         setShowHistory(false);
 
         // Reload conversations
@@ -117,6 +119,7 @@ export default function ChatContainer() {
 
         // Add user message locally
         const userMessage: Message = {
+            id: crypto.randomUUID(),
             role: 'user',
             content,
             timestamp: new Date(),
@@ -130,6 +133,7 @@ export default function ChatContainer() {
         if (checkForCrisisKeywords(content)) {
             const crisisResponse = getCrisisResponse(profile.name || 'there');
             const assistantMessage: Message = {
+                id: crypto.randomUUID(),
                 role: 'assistant',
                 content: crisisResponse,
                 timestamp: new Date(),
@@ -162,14 +166,19 @@ export default function ChatContainer() {
                 messages.map(m => ({ role: m.role, content: m.content })),
                 {
                     name: profile.name || 'there',
-                    onboarding: profile.onboarding,
+                    lucidScores: profile.lucidScores,
+                    archetype: profile.archetype,
+                    currentStruggle: profile.onboarding?.currentStruggle,
                     streak: profile.streak,
+                    level: profile.level,
+                    xp: profile.xp,
                 },
-                { deepDive: deepDiveEnabled }
+                { deepDive: deepDiveMode }
             );
 
             // Add assistant message
             const assistantMessage: Message = {
+                id: crypto.randomUUID(),
                 role: 'assistant',
                 content: aiResponse,
                 timestamp: new Date(),
@@ -183,6 +192,7 @@ export default function ChatContainer() {
             console.error('Error generating response:', error);
 
             const errorMessage: Message = {
+                id: crypto.randomUUID(),
                 role: 'assistant',
                 content: `Hey ${profile.name || 'there'}, something went wrong on my end. Mind trying that again?`,
                 timestamp: new Date(),

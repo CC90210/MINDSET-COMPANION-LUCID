@@ -70,7 +70,10 @@ export default function OnboardingFlow() {
                 localStorage.removeItem('lucid_assessment');
             }
 
-            await completeOnboarding(name, struggles.find(s => s.id === selectedStruggle)?.label || '');
+            await completeOnboarding({
+                name,
+                currentStruggle: struggles.find(s => s.id === selectedStruggle)?.label || '',
+            });
             await updateProfile(updateData);
 
             router.push('/home');
@@ -194,8 +197,8 @@ export default function OnboardingFlow() {
                                     >
                                         <span className="text-2xl">{struggle.emoji}</span>
                                         <span className={`text-left flex-1 ${selectedStruggle === struggle.id
-                                                ? 'text-foreground'
-                                                : 'text-foreground-secondary'
+                                            ? 'text-foreground'
+                                            : 'text-foreground-secondary'
                                             }`}>
                                             {struggle.label}
                                         </span>

@@ -14,7 +14,7 @@ const channels = ['mindset', 'wins', 'accountability', 'questions'];
 
 export default function CreatePostModal() {
     const { profile, user } = useAuth();
-    const { isPostModalOpen, closePostModal } = useUIStore();
+    const { postModalOpen, closePostModal } = useUIStore();
     const { prependPost } = useFeedStore();
 
     const [content, setContent] = useState('');
@@ -104,7 +104,7 @@ export default function CreatePostModal() {
 
     return (
         <Modal
-            isOpen={isPostModalOpen}
+            isOpen={postModalOpen}
             onClose={closePostModal}
             title="Share with the community"
             size="lg"

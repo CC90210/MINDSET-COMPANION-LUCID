@@ -151,6 +151,7 @@ interface FeedState {
 
     setPosts: (posts: FeedPost[]) => void;
     addPosts: (posts: FeedPost[]) => void;
+    prependPost: (post: FeedPost) => void;
     updatePost: (id: string, data: Partial<FeedPost>) => void;
     setFeedType: (type: 'foryou' | 'following') => void;
     setIsLoading: (loading: boolean) => void;
@@ -166,6 +167,9 @@ export const useFeedStore = create<FeedState>((set) => ({
     setPosts: (posts) => set({ posts }),
     addPosts: (posts) => set((state) => ({
         posts: [...state.posts, ...posts.filter(p => !state.posts.some(ep => ep.id === p.id))]
+    })),
+    prependPost: (post) => set((state) => ({
+        posts: [post, ...state.posts.filter(p => p.id !== post.id)]
     })),
     updatePost: (id, data) => set((state) => ({
         posts: state.posts.map(p => p.id === id ? { ...p, ...data } : p),

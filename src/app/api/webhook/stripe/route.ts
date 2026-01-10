@@ -2,20 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2023-10-16',
-});
+// Lazy initialization to avoid build-time errors
+function getStripe() {
+    if (!process.env.STRIPE_SECRET_KEY) {
+        throw new Error('STRIPE_SECRET_KEY is not configured');
+    }
+    return new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2025-12-15.clover',
+    });
+}
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+function getWebhookSecret() {
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+        throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
+    }
+    return process.env.STRIPE_WEBHOOK_SECRET;
+}
 
 export async function POST(request: NextRequest) {
     const body = await request.text();
-    const signature = request.headers.get('stripe-signature')!;
+    const signature = request.headers.get('stripe-signature');
+
+    if (!signature) {
+        return NextResponse.json(
+            { error: 'Missing stripe-signature header' },
+            { status: 400 }
+        );
+    }
 
     let event: Stripe.Event;
 
     try {
-        event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+        const stripe = getStripe();
+        event = stripe.webhooks.constructEvent(body, signature, getWebhookSecret());
     } catch (error) {
         console.error('Webhook signature verification failed:', error);
         return NextResponse.json(
@@ -82,11 +101,12 @@ export async function POST(request: NextRequest) {
             }
 
             case 'invoice.payment_failed': {
-                const invoice = event.data.object as Stripe.Invoice;
-                const subscriptionId = invoice.subscription as string;
+                // Use any cast since Invoice type definition varies between Stripe versions
+                const invoice = event.data.object as any;
+                const subscriptionId = invoice.subscription;
 
-                if (subscriptionId) {
-                    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                if (subscriptionId && typeof subscriptionId === 'string') {
+                    const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
                     const userId = subscription.metadata?.userId;
 
                     if (userId) {
