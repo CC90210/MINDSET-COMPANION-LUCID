@@ -81,7 +81,9 @@ export default function ChatContainer() {
             id: `msg-${i}`,
             role: m.role,
             content: m.content,
-            timestamp: m.timestamp?.toDate?.() || new Date(),
+            timestamp: (m.timestamp as any)?.toDate ? (m.timestamp as any).toDate() :
+                (m.timestamp as any)?.seconds ? new Date((m.timestamp as any).seconds * 1000) :
+                    new Date(),
         })));
 
         setShowHistory(false);

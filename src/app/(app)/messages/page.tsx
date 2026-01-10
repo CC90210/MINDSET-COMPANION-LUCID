@@ -159,9 +159,14 @@ export default function MessagesPage() {
                                             {convo.otherUser?.name || 'Unknown User'}
                                         </span>
                                         <span className="text-xs text-foreground-subtle">
-                                            {convo.lastMessageAt?.toDate &&
-                                                formatDistanceToNow(convo.lastMessageAt.toDate(), { addSuffix: true })
-                                            }
+                                            {convo.lastMessageAt && (
+                                                formatDistanceToNow(
+                                                    (convo.lastMessageAt as any).toDate ? (convo.lastMessageAt as any).toDate() :
+                                                        (convo.lastMessageAt as any).seconds ? new Date((convo.lastMessageAt as any).seconds * 1000) :
+                                                            new Date(),
+                                                    { addSuffix: true }
+                                                )
+                                            )}
                                         </span>
                                     </div>
                                     <p className="text-sm text-foreground-muted truncate">
