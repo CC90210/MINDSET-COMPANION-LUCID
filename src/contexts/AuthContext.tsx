@@ -12,7 +12,8 @@ import {
     createUserProfile,
     getUserProfile,
     updateUserProfile,
-    UserProfile
+    UserProfile,
+    isFirebaseConfigured
 } from '@/lib/firebase';
 
 interface AuthContextType {
@@ -20,6 +21,7 @@ interface AuthContextType {
     profile: UserProfile | null;
     loading: boolean;
     error: string | null;
+    isConfigured: boolean;
     signInGoogle: () => Promise<void>;
     signInEmail: (email: string, password: string) => Promise<void>;
     signUpEmail: (email: string, password: string) => Promise<void>;
@@ -34,14 +36,38 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock user for development
+const MOCK_USER = {
+    uid: 'mock-user-123',
+    email: 'demo@lucid.app',
+    displayName: 'Demo User',
+    photoURL: null,
+} as unknown as User;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isConfigured, setIsConfigured] = useState(true);
 
     // Listen to auth state changes
     useEffect(() => {
+        setIsConfigured(isFirebaseConfigured);
+
+        if (!isFirebaseConfigured || !auth) {
+            console.warn('Firebase not configured - using demo mode');
+            // Simulate delay to feel like loading
+            setTimeout(async () => {
+                setUser(MOCK_USER);
+                // Also fetch/create profile for mock user
+                const userProfile = await getUserProfile(MOCK_USER.uid);
+                setProfile(userProfile);
+                setLoading(false);
+            }, 800);
+            return;
+        }
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
 
@@ -61,6 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signInGoogle = async () => {
         setError(null);
+        if (!isFirebaseConfigured) {
+            const { user: googleUser } = await signInWithGoogle();
+            if (googleUser) {
+                setUser(googleUser);
+                const userProfile = await getUserProfile(googleUser.uid);
+                setProfile(userProfile);
+            }
+            return;
+        }
+
         try {
             const { user: googleUser, error: googleError } = await signInWithGoogle();
 
@@ -82,6 +118,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signInEmail = async (email: string, password: string) => {
         setError(null);
+        if (!isFirebaseConfigured) {
+            const { user: emailUser } = await signInWithEmail(email, password);
+            if (emailUser) {
+                setUser(emailUser);
+                const userProfile = await getUserProfile(emailUser.uid);
+                setProfile(userProfile);
+            }
+            return;
+        }
         try {
             const { user: emailUser, error: emailError } = await signInWithEmail(email, password);
 
@@ -102,6 +147,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signUpEmail = async (email: string, password: string) => {
         setError(null);
+        if (!isFirebaseConfigured) {
+            const { user: newUser } = await signUpWithEmail(email, password);
+            if (newUser) {
+                setUser(newUser);
+                const userProfile = await getUserProfile(newUser.uid);
+                setProfile(userProfile);
+            }
+            return;
+        }
         try {
             const { user: newUser, error: signUpError } = await signUpWithEmail(email, password);
 
@@ -123,6 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const logout = async () => {
         setError(null);
+        if (!isFirebaseConfigured) {
+            setUser(null);
+            setProfile(null);
+            return;
+        }
         try {
             await logOut();
             setUser(null);
@@ -169,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         loading,
         error,
+        isConfigured, // Exposed for UI to show "Demo Mode" badge if desired
         signInGoogle,
         signInEmail,
         signUpEmail,

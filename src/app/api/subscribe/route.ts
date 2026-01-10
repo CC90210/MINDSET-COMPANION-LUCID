@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
+const isStripeConfigured = !!process.env.STRIPE_SECRET_KEY;
+
 // Lazy initialization to avoid build-time errors
 function getStripe() {
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -12,6 +14,14 @@ function getStripe() {
 }
 
 export async function POST(request: NextRequest) {
+    if (!isStripeConfigured) {
+        return NextResponse.json({
+            error: 'Payments not configured yet',
+            isDemo: true,
+            message: 'Stripe integration coming soon!'
+        }, { status: 503 });
+    }
+
     try {
         const stripe = getStripe();
         const body = await request.json();

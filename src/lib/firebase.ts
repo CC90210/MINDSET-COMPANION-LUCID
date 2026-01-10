@@ -33,6 +33,7 @@ import {
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { MOCK_POSTS, MOCK_USER_PROFILE, MOCK_CHAT_MESSAGES } from './mockData';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -44,39 +45,38 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (prevent duplicate initialization)
-let app: ReturnType<typeof initializeApp>;
-let auth: ReturnType<typeof getAuth>;
-let db: ReturnType<typeof getFirestore>;
-let storage: ReturnType<typeof getStorage>;
+// Check if Firebase is configured
+const isFirebaseConfigured = Object.values(firebaseConfig).every(
+  (value) => value !== undefined && value !== ''
+);
 
-// Check if we have required config to prevent build failures
-if (typeof window !== 'undefined' || process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+// Initialize Firebase (prevent duplicate initialization)
+let app: ReturnType<typeof initializeApp> | null = null;
+let auth: ReturnType<typeof getAuth> | null = null;
+let db: ReturnType<typeof getFirestore> | null = null;
+let storage: ReturnType<typeof getStorage> | null = null;
+
+if (isFirebaseConfigured && typeof window !== 'undefined') {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
   } catch (error) {
-    console.warn('Firebase initialization error:', error);
-    // Fallback for graceful failure
-    app = {} as any;
-    auth = {} as any;
-    db = {} as any;
-    storage = {} as any;
+    console.warn('Firebase initialization failed:', error);
   }
-} else {
-  // Build environment / Server side without config
-  app = {} as any;
-  auth = {} as any;
-  db = {} as any;
-  storage = {} as any;
 }
+
 const googleProvider = new GoogleAuthProvider();
 
 // ========== AUTH FUNCTIONS ==========
 
 export async function signInWithGoogle() {
+  if (!isFirebaseConfigured || !auth) {
+    console.warn('Firebase not configured. Using Mock Sign In.');
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate delay
+    return { user: { uid: 'mock-user-123', email: 'demo@lucid.app', displayName: 'Demo User', photoURL: null } as User, error: null };
+  }
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return { user: result.user, error: null };
@@ -87,6 +87,11 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithEmail(email: string, password: string) {
+  if (!isFirebaseConfigured || !auth) {
+    console.warn('Firebase not configured. Using Mock Sign In.');
+    await new Promise(resolve => setTimeout(resolve, 800));
+    return { user: { uid: 'mock-user-123', email, displayName: 'Demo User' } as User, error: null };
+  }
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     return { user: result.user, error: null };
@@ -97,6 +102,11 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signUpWithEmail(email: string, password: string) {
+  if (!isFirebaseConfigured || !auth) {
+    console.warn('Firebase not configured. Using Mock Sign Up.');
+    await new Promise(resolve => setTimeout(resolve, 800));
+    return { user: { uid: 'mock-user-123', email, displayName: 'Demo User' } as User, error: null };
+  }
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     return { user: result.user, error: null };
@@ -107,6 +117,9 @@ export async function signUpWithEmail(email: string, password: string) {
 }
 
 export async function logOut() {
+  if (!isFirebaseConfigured || !auth) {
+    return { error: null };
+  }
   try {
     await signOut(auth);
     return { error: null };
@@ -141,7 +154,7 @@ export interface UserProfile {
   email: string;
   bio?: string;
   avatarUrl?: string;
-  createdAt: Timestamp;
+  createdAt: Timestamp | { seconds: number, nanoseconds: number } | string;
   subscriptionTier: 'free' | 'premium';
   stripeCustomerId?: string;
 
@@ -184,6 +197,15 @@ export interface UserProfile {
 }
 
 export async function createUserProfile(user: User, additionalData?: Partial<UserProfile>) {
+  if (!isFirebaseConfigured || !db) {
+    return {
+      ...MOCK_USER_PROFILE,
+      ...additionalData,
+      uid: user.uid,
+      email: user.email || '',
+      displayName: user.displayName || '',
+    } as unknown as UserProfile;
+  }
   const userRef = doc(db, 'users', user.uid);
   const userSnap = await getDoc(userRef);
 
@@ -211,6 +233,9 @@ export async function createUserProfile(user: User, additionalData?: Partial<Use
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  if (!isFirebaseConfigured || !db) {
+    return MOCK_USER_PROFILE as unknown as UserProfile;
+  }
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
 
@@ -222,6 +247,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 }
 
 export async function updateUserProfile(userId: string, data: Partial<UserProfile>) {
+  if (!isFirebaseConfigured || !db) return;
   const userRef = doc(db, 'users', userId);
   await updateDoc(userRef, data);
 }
@@ -231,7 +257,7 @@ export async function updateUserProfile(userId: string, data: Partial<UserProfil
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Timestamp;
+  timestamp: Timestamp | { seconds: number, nanoseconds: number };
 }
 
 export interface Conversation {
@@ -242,6 +268,7 @@ export interface Conversation {
 }
 
 export async function createConversation(userId: string): Promise<string> {
+  if (!isFirebaseConfigured || !db) return 'mock-conversation-id';
   const conversationsRef = collection(db, 'users', userId, 'conversations');
   const newConversation = await addDoc(conversationsRef, {
     createdAt: serverTimestamp(),
@@ -252,6 +279,7 @@ export async function createConversation(userId: string): Promise<string> {
 }
 
 export async function getConversations(userId: string): Promise<Conversation[]> {
+  if (!isFirebaseConfigured || !db) return [];
   const conversationsRef = collection(db, 'users', userId, 'conversations');
   const q = query(conversationsRef, orderBy('lastMessageAt', 'desc'), limit(50));
   const snapshot = await getDocs(q);
@@ -263,6 +291,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
 }
 
 export async function getMessages(userId: string, conversationId: string): Promise<Message[]> {
+  if (!isFirebaseConfigured || !db) return MOCK_CHAT_MESSAGES as unknown as Message[];
   const messagesRef = collection(db, 'users', userId, 'conversations', conversationId, 'messages');
   const q = query(messagesRef, orderBy('timestamp', 'asc'));
   const snapshot = await getDocs(q);
@@ -275,6 +304,7 @@ export async function addMessage(
   conversationId: string,
   message: Omit<Message, 'timestamp'>
 ) {
+  if (!isFirebaseConfigured || !db) return;
   const messagesRef = collection(db, 'users', userId, 'conversations', conversationId, 'messages');
   await addDoc(messagesRef, {
     ...message,
@@ -293,6 +323,10 @@ export function subscribeToMessages(
   conversationId: string,
   callback: (messages: Message[]) => void
 ) {
+  if (!isFirebaseConfigured || !db) {
+    setTimeout(() => callback(MOCK_CHAT_MESSAGES as unknown as Message[]), 100);
+    return () => { };
+  }
   const messagesRef = collection(db, 'users', userId, 'conversations', conversationId, 'messages');
   const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
@@ -313,7 +347,7 @@ export interface Post {
   imageUrl?: string;
   channel?: string;
   isAnonymous: boolean;
-  createdAt: Timestamp;
+  createdAt: Timestamp | { seconds: number, nanoseconds: number };
   likeCount: number;
   commentCount: number;
 }
@@ -328,6 +362,7 @@ export interface Comment {
 }
 
 export async function createPost(data: Omit<Post, 'id' | 'createdAt' | 'likeCount' | 'commentCount'>) {
+  if (!isFirebaseConfigured || !db) return 'mock-post-id';
   const postsRef = collection(db, 'posts');
   const newPost = await addDoc(postsRef, {
     ...data,
@@ -343,6 +378,10 @@ export async function getPosts(
   pageSize = 20,
   channel?: string
 ): Promise<{ posts: Post[]; lastDoc: QueryDocumentSnapshot<DocumentData> | null }> {
+  if (!isFirebaseConfigured || !db) {
+    // Return mock posts
+    return { posts: MOCK_POSTS as unknown as Post[], lastDoc: null };
+  }
   const postsRef = collection(db, 'posts');
   let q = query(postsRef, orderBy('createdAt', 'desc'), limit(pageSize));
 
@@ -371,6 +410,7 @@ export async function getFollowingPosts(
   lastDoc?: QueryDocumentSnapshot<DocumentData>,
   pageSize = 20
 ): Promise<{ posts: Post[]; lastDoc: QueryDocumentSnapshot<DocumentData> | null }> {
+  if (!isFirebaseConfigured || !db) return { posts: [], lastDoc: null };
   // Get following list
   const followingRef = collection(db, 'users', userId, 'following');
   const followingSnap = await getDocs(followingRef);
@@ -406,6 +446,7 @@ export async function getFollowingPosts(
 }
 
 export async function likePost(postId: string, userId: string) {
+  if (!isFirebaseConfigured || !db) return true;
   const likeRef = doc(db, 'posts', postId, 'likes', userId);
   const likeSnap = await getDoc(likeRef);
   const postRef = doc(db, 'posts', postId);
@@ -424,12 +465,14 @@ export async function likePost(postId: string, userId: string) {
 }
 
 export async function isPostLiked(postId: string, userId: string): Promise<boolean> {
+  if (!isFirebaseConfigured || !db) return false;
   const likeRef = doc(db, 'posts', postId, 'likes', userId);
   const likeSnap = await getDoc(likeRef);
   return likeSnap.exists();
 }
 
 export async function addComment(postId: string, data: Omit<Comment, 'id' | 'createdAt'>) {
+  if (!isFirebaseConfigured || !db) return 'mock-comment-id';
   const commentsRef = collection(db, 'posts', postId, 'comments');
   const postRef = doc(db, 'posts', postId);
 
@@ -444,6 +487,7 @@ export async function addComment(postId: string, data: Omit<Comment, 'id' | 'cre
 }
 
 export async function getComments(postId: string): Promise<Comment[]> {
+  if (!isFirebaseConfigured || !db) return [];
   const commentsRef = collection(db, 'posts', postId, 'comments');
   const q = query(commentsRef, orderBy('createdAt', 'asc'));
   const snapshot = await getDocs(q);
@@ -457,6 +501,7 @@ export async function getComments(postId: string): Promise<Comment[]> {
 // ========== FOLLOW FUNCTIONS ==========
 
 export async function followUser(currentUserId: string, targetUserId: string) {
+  if (!isFirebaseConfigured || !db) return;
   const batch = writeBatch(db);
 
   const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
@@ -469,6 +514,7 @@ export async function followUser(currentUserId: string, targetUserId: string) {
 }
 
 export async function unfollowUser(currentUserId: string, targetUserId: string) {
+  if (!isFirebaseConfigured || !db) return;
   const batch = writeBatch(db);
 
   const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
@@ -481,18 +527,21 @@ export async function unfollowUser(currentUserId: string, targetUserId: string) 
 }
 
 export async function isFollowing(currentUserId: string, targetUserId: string): Promise<boolean> {
+  if (!isFirebaseConfigured || !db) return false;
   const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
   const snap = await getDoc(followingRef);
   return snap.exists();
 }
 
 export async function getFollowerCount(userId: string): Promise<number> {
+  if (!isFirebaseConfigured || !db) return 12; // Mock count
   const followersRef = collection(db, 'users', userId, 'followers');
   const snapshot = await getDocs(followersRef);
   return snapshot.size;
 }
 
 export async function getFollowingCount(userId: string): Promise<number> {
+  if (!isFirebaseConfigured || !db) return 24; // Mock count
   const followingRef = collection(db, 'users', userId, 'following');
   const snapshot = await getDocs(followingRef);
   return snapshot.size;
@@ -519,6 +568,7 @@ export async function getOrCreateDMConversation(
   userId1: string,
   userId2: string
 ): Promise<string> {
+  if (!isFirebaseConfigured || !db) return 'mock-dm-id';
   // Check if conversation exists
   const dmsRef = collection(db, 'directMessages');
   const q = query(dmsRef, where('participants', 'array-contains', userId1));
@@ -546,6 +596,7 @@ export async function sendDirectMessage(
   senderId: string,
   content: string
 ) {
+  if (!isFirebaseConfigured || !db) return;
   const messagesRef = collection(db, 'directMessages', conversationId, 'messages');
   const conversationRef = doc(db, 'directMessages', conversationId);
 
@@ -563,6 +614,7 @@ export async function sendDirectMessage(
 }
 
 export async function getDMConversations(userId: string): Promise<DMConversation[]> {
+  if (!isFirebaseConfigured || !db) return [];
   const dmsRef = collection(db, 'directMessages');
   const q = query(
     dmsRef,
@@ -581,6 +633,9 @@ export function subscribeToDMMessages(
   conversationId: string,
   callback: (messages: DirectMessage[]) => void
 ) {
+  if (!isFirebaseConfigured || !db) {
+    return () => { };
+  }
   const messagesRef = collection(db, 'directMessages', conversationId, 'messages');
   const q = query(messagesRef, orderBy('createdAt', 'asc'));
 
@@ -596,6 +651,7 @@ export function subscribeToDMMessages(
 // ========== DAILY CHECK-INS ==========
 
 export async function submitDailyCheckin(userId: string, response: string) {
+  if (!isFirebaseConfigured || !db) return;
   const today = new Date().toISOString().split('T')[0];
   const checkinRef = doc(db, 'dailyCheckins', today, 'responses', userId);
 
@@ -634,6 +690,7 @@ export async function uploadImage(
   file: File,
   path: string
 ): Promise<string> {
+  if (!isFirebaseConfigured || !storage) return 'https://placehold.co/400'; // Mock image
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file);
   return getDownloadURL(storageRef);
@@ -642,6 +699,7 @@ export async function uploadImage(
 // ========== RATE LIMITING ==========
 
 export async function checkMessageLimit(userId: string): Promise<{ canSend: boolean; remaining: number }> {
+  if (!isFirebaseConfigured || !db) return { canSend: true, remaining: 99 };
   const userSnap = await getDoc(doc(db, 'users', userId));
 
   if (!userSnap.exists()) {
@@ -675,6 +733,7 @@ export async function checkMessageLimit(userId: string): Promise<{ canSend: bool
 }
 
 export async function incrementMessageCount(userId: string) {
+  if (!isFirebaseConfigured || !db) return;
   const today = new Date().toISOString().split('T')[0];
   const userRef = doc(db, 'users', userId);
 
@@ -685,5 +744,5 @@ export async function incrementMessageCount(userId: string) {
 }
 
 // Exports
-export { app, auth, db, storage, onAuthStateChanged };
+export { app, auth, db, storage, onAuthStateChanged, isFirebaseConfigured };
 export type { User };

@@ -72,7 +72,9 @@ export default function FeedPage() {
 
             const formattedPosts = result.posts.map(p => ({
                 ...p,
-                createdAt: (p.createdAt as Timestamp)?.toDate?.() || new Date(),
+                createdAt: (p.createdAt as any)?.toDate ? (p.createdAt as any).toDate() :
+                    (p.createdAt as any)?.seconds ? new Date((p.createdAt as any).seconds * 1000) :
+                        new Date(),
             }));
 
             if (refresh) {
@@ -128,8 +130,8 @@ export default function FeedPage() {
                         <button
                             onClick={() => setFeedType('foryou')}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedType === 'foryou'
-                                    ? 'bg-accent-primary/10 text-accent-primary'
-                                    : 'text-foreground-muted hover:text-foreground'
+                                ? 'bg-accent-primary/10 text-accent-primary'
+                                : 'text-foreground-muted hover:text-foreground'
                                 }`}
                         >
                             <TrendingUp size={16} />
@@ -138,8 +140,8 @@ export default function FeedPage() {
                         <button
                             onClick={() => setFeedType('following')}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedType === 'following'
-                                    ? 'bg-accent-primary/10 text-accent-primary'
-                                    : 'text-foreground-muted hover:text-foreground'
+                                ? 'bg-accent-primary/10 text-accent-primary'
+                                : 'text-foreground-muted hover:text-foreground'
                                 }`}
                         >
                             <Users size={16} />
@@ -160,8 +162,8 @@ export default function FeedPage() {
                         <a
                             href="/feed"
                             className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors ${!channelParam
-                                    ? 'bg-foreground text-background'
-                                    : 'bg-background-hover text-foreground-muted hover:text-foreground'
+                                ? 'bg-foreground text-background'
+                                : 'bg-background-hover text-foreground-muted hover:text-foreground'
                                 }`}
                         >
                             All
@@ -171,8 +173,8 @@ export default function FeedPage() {
                                 key={channel}
                                 href={`/feed?channel=${channel}`}
                                 className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors ${channelParam === channel
-                                        ? 'bg-foreground text-background'
-                                        : 'bg-background-hover text-foreground-muted hover:text-foreground'
+                                    ? 'bg-foreground text-background'
+                                    : 'bg-background-hover text-foreground-muted hover:text-foreground'
                                     }`}
                             >
                                 <Hash size={12} />
