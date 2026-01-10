@@ -45,10 +45,33 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (prevent duplicate initialization)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+let app: ReturnType<typeof initializeApp>;
+let auth: ReturnType<typeof getAuth>;
+let db: ReturnType<typeof getFirestore>;
+let storage: ReturnType<typeof getStorage>;
+
+// Check if we have required config to prevent build failures
+if (typeof window !== 'undefined' || process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+  } catch (error) {
+    console.warn('Firebase initialization error:', error);
+    // Fallback for graceful failure
+    app = {} as any;
+    auth = {} as any;
+    db = {} as any;
+    storage = {} as any;
+  }
+} else {
+  // Build environment / Server side without config
+  app = {} as any;
+  auth = {} as any;
+  db = {} as any;
+  storage = {} as any;
+}
 const googleProvider = new GoogleAuthProvider();
 
 // ========== AUTH FUNCTIONS ==========
