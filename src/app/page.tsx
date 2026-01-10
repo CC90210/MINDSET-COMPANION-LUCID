@@ -1,15 +1,26 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { ArrowRight, MessageCircle, Users, Sparkles, Shield, Zap, Heart } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, Sparkles, MessageCircle, Users, TrendingUp, Target, Brain, Zap } from 'lucide-react';
+import AssessmentFlow from '@/components/assessment/AssessmentFlow';
 import { useAuth } from '@/contexts/AuthContext';
+import { AssessmentResult } from '@/lib/assessment';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [showAssessment, setShowAssessment] = useState(false);
+  const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
+
+  useEffect(() => {
+    // Check for stored assessment result
+    const stored = localStorage.getItem('lucid_assessment');
+    if (stored) {
+      setAssessmentResult(JSON.parse(stored));
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -17,36 +28,43 @@ export default function HomePage() {
     }
   }, [user, loading, router]);
 
+  const handleAssessmentComplete = (result: AssessmentResult) => {
+    setAssessmentResult(result);
+    localStorage.setItem('lucid_assessment', JSON.stringify(result));
+    setShowAssessment(false);
+    // Redirect to signup with assessment data
+    router.push('/auth?from=assessment');
+  };
+
+  if (showAssessment) {
+    return (
+      <AssessmentFlow
+        onComplete={handleAssessmentComplete}
+        onSkip={() => setShowAssessment(false)}
+      />
+    );
+  }
+
   const features = [
+    {
+      icon: Brain,
+      title: 'Know Your Mind',
+      description: 'Take the Lucid Assessment. Get a clear score across 5 mental dimensions. See yourself without the stories.',
+    },
     {
       icon: MessageCircle,
       title: 'Talk to CC',
-      description: 'Get sharp, personal insight from an AI that actually gets it. No fluff. No generic advice.',
+      description: "An AI that doesn't coddle you. Sharp insight. Real talk. The friend who tells you what you need to hear.",
     },
     {
       icon: Users,
-      title: 'Connect with Others',
-      description: 'Join a community of people who are leveling up. Share wins. Get accountability.',
+      title: 'Real Community',
+      description: 'Not toxic positivity. Not pessimistic realism. People who are actually doing the work, together.',
     },
     {
-      icon: Sparkles,
-      title: 'Transform',
-      description: "This isn't about motivation. It's about becoming the person you know you can be.",
-    },
-  ];
-
-  const testimonials = [
-    {
-      quote: "CC said one thing and it shifted years of stuck thinking. I'm not exaggerating.",
-      author: "Alex M.",
-    },
-    {
-      quote: "Finally a community that's not toxic positivity or pessimistic realism. It's real.",
-      author: "Jordan K.",
-    },
-    {
-      quote: "The daily check-ins have changed how I show up. Simple but powerful.",
-      author: "Sam T.",
+      icon: TrendingUp,
+      title: 'Track Growth',
+      description: 'XP, levels, streaks. Watch yourself level up. Retake assessments. See the change over time.',
     },
   ];
 
@@ -54,41 +72,37 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background gradient */}
+        {/* Background effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-accent-primary/5 via-transparent to-transparent" />
 
-        {/* Animated orbs */}
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-primary/20 rounded-full blur-3xl"
+          className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-accent-primary/10 rounded-full blur-[100px]"
           animate={{
-            x: [0, 50, 0],
-            y: [0, -30, 0],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{ duration: 8, repeat: Infinity }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-accent-secondary/20 rounded-full blur-3xl"
-          animate={{
-            x: [0, -40, 0],
-            y: [0, 40, 0],
-            opacity: [0.2, 0.4, 0.2],
+            x: [0, 30, 0],
+            y: [0, -20, 0],
+            scale: [1, 1.1, 1],
           }}
           transition={{ duration: 10, repeat: Infinity }}
         />
+        <motion.div
+          className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-accent-secondary/10 rounded-full blur-[100px]"
+          animate={{
+            x: [0, -25, 0],
+            y: [0, 25, 0],
+            scale: [1, 0.9, 1],
+          }}
+          transition={{ duration: 12, repeat: Infinity }}
+        />
 
-        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
+        <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
           {/* Logo */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center"
-            style={{
-              boxShadow: '0 0 40px rgba(139, 92, 246, 0.4)',
-            }}
+            className="mb-10"
           >
-            <span className="text-3xl font-bold text-white">CC</span>
+            <span className="text-5xl font-bold gradient-text">LUCID</span>
           </motion.div>
 
           {/* Headline */}
@@ -96,10 +110,9 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight"
           >
-            The only thing between you and the life you want is the
-            <span className="text-gradient"> story you keep telling yourself.</span>
+            Most people have no idea where they actually stand mentally.
           </motion.h1>
 
           {/* Subtitle */}
@@ -107,10 +120,9 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="text-xl text-foreground-muted mb-10 max-w-2xl mx-auto"
+            className="text-xl text-foreground-secondary mb-10 max-w-xl mx-auto"
           >
-            Meet CC — your AI mindset companion. Get the truth you need to hear.
-            Connect with others on the same journey. Become who you're meant to be.
+            Let's find out.
           </motion.p>
 
           {/* CTAs */}
@@ -120,23 +132,36 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.4 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Button
-              size="lg"
-              onClick={() => router.push('/auth')}
-              rightIcon={<ArrowRight size={20} />}
-              className="w-full sm:w-auto"
+            <button
+              onClick={() => setShowAssessment(true)}
+              className="btn btn-primary btn-lg group"
             >
-              Start Your Journey
-            </Button>
-            <Button
-              variant="secondary"
-              size="lg"
+              <Sparkles size={20} className="mr-2" />
+              Get Lucid
+              <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <button
               onClick={() => router.push('/auth')}
-              className="w-full sm:w-auto"
+              className="btn btn-ghost text-foreground-secondary"
             >
-              I Already Have an Account
-            </Button>
+              I have an account
+            </button>
           </motion.div>
+
+          {/* Assessment Result Teaser */}
+          {assessmentResult && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-12 inline-flex items-center gap-3 px-6 py-3 bg-background-secondary border border-border rounded-full"
+            >
+              <span className="text-2xl font-bold gradient-text">{assessmentResult.scores.overall}</span>
+              <span className="text-foreground-secondary">Your Lucid Score</span>
+              <span className="text-foreground-tertiary">•</span>
+              <span className="text-foreground">{assessmentResult.archetype}</span>
+            </motion.div>
+          )}
         </div>
 
         {/* Scroll indicator */}
@@ -145,13 +170,50 @@ export default function HomePage() {
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          <div className="w-6 h-10 rounded-full border-2 border-foreground-subtle flex items-start justify-center p-2">
-            <div className="w-1.5 h-1.5 bg-foreground-muted rounded-full" />
+          <div className="w-6 h-10 rounded-full border border-foreground-tertiary flex items-start justify-center p-2">
+            <motion.div
+              className="w-1 h-2 bg-foreground-tertiary rounded-full"
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
           </div>
         </motion.div>
       </section>
 
-      {/* Features Section */}
+      {/* The Problem */}
+      <section className="py-24 px-6 bg-background-secondary">
+        <div className="max-w-4xl mx-auto text-center">
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-foreground-secondary text-lg mb-8"
+          >
+            Here's the thing.
+          </motion.p>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-4xl font-bold text-foreground mb-6"
+          >
+            The only thing between you and the life you want is the story you keep telling yourself.
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="text-xl text-foreground-secondary max-w-2xl mx-auto"
+          >
+            Lucid helps you see that story clearly. And then write a new one.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Features */}
       <section className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
           <motion.div
@@ -160,15 +222,13 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              This isn't a chatbot. This isn't a forum.
+            <p className="text-accent-primary font-medium mb-4">How it works</p>
+            <h2 className="text-3xl font-bold text-foreground">
+              Four pillars of transformation
             </h2>
-            <p className="text-xl text-foreground-muted">
-              It's a third space — where transformation happens.
-            </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-6">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
@@ -178,7 +238,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="p-8 bg-background-elevated border border-border rounded-2xl hover:border-accent-primary/50 transition-colors"
+                  className="card card-interactive p-8"
                 >
                   <div className="w-12 h-12 mb-6 rounded-xl bg-accent-primary/10 flex items-center justify-center">
                     <Icon size={24} className="text-accent-primary" />
@@ -186,7 +246,7 @@ export default function HomePage() {
                   <h3 className="text-xl font-semibold text-foreground mb-3">
                     {feature.title}
                   </h3>
-                  <p className="text-foreground-muted">
+                  <p className="text-foreground-secondary leading-relaxed">
                     {feature.description}
                   </p>
                 </motion.div>
@@ -196,68 +256,70 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How CC is Different */}
-      <section className="py-24 px-6 bg-background-elevated/50">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              CC isn't like other AI
-            </h2>
-            <p className="text-xl text-foreground-muted">
-              Built different. Speaks different. Changes things different.
-            </p>
-          </motion.div>
+      {/* Assessment CTA */}
+      <section className="py-24 px-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="max-w-3xl mx-auto"
+        >
+          <div className="relative p-12 rounded-3xl overflow-hidden">
+            {/* Background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-accent-primary/20 to-accent-secondary/20" />
+            <div className="absolute inset-0 backdrop-blur-xl" />
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              { icon: Zap, title: 'Radical brevity', text: 'Says more with less. Every word earns its place.' },
-              { icon: Heart, title: 'Earned directness', text: 'Challenges you because it cares. Not to sound smart.' },
-              { icon: Sparkles, title: 'Real insight', text: "Sees patterns you can't see. Names what you can't name." },
-              { icon: Shield, title: 'Genuinely safe', text: "Crisis-aware. Resource-equipped. Never abandons you." },
-            ].map((item, index) => {
-              const Icon = item.icon;
-              return (
-                <motion.div
-                  key={item.title}
-                  initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  className="flex gap-4 p-6 bg-background border border-border rounded-xl"
-                >
-                  <Icon size={24} className="text-accent-primary flex-shrink-0 mt-1" />
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-1">{item.title}</h4>
-                    <p className="text-foreground-muted text-sm">{item.text}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
+            {/* Border */}
+            <div className="absolute inset-0 rounded-3xl border border-accent-primary/30" />
+
+            {/* Content */}
+            <div className="relative z-10 text-center">
+              <motion.div
+                animate={{ rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-background/80 rounded-full text-sm text-foreground-secondary"
+              >
+                <Target size={16} className="text-accent-primary" />
+                Free • 2 minutes • No signup required
+              </motion.div>
+
+              <h2 className="text-3xl font-bold text-foreground mb-4">
+                What's your Lucid score?
+              </h2>
+              <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
+                Take the assessment. Get scored across 5 mental dimensions. Find out your archetype. Share with friends.
+              </p>
+
+              <button
+                onClick={() => setShowAssessment(true)}
+                className="btn btn-primary btn-lg animate-glow"
+              >
+                <Sparkles size={20} className="mr-2" />
+                Take the Assessment
+              </button>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-24 px-6">
+      {/* Social Proof Placeholder */}
+      <section className="py-16 px-6 border-t border-border">
         <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+          <div className="grid grid-cols-3 gap-8 text-center">
+            {[
+              { number: '12,000+', label: 'Assessments taken' },
+              { number: '67', label: 'Average starting score' },
+              { number: '+8', label: 'Avg improvement in 30 days' },
+            ].map((stat, i) => (
               <motion.div
-                key={index}
+                key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="p-6 bg-background-elevated border border-border rounded-2xl"
+                transition={{ delay: i * 0.1 }}
               >
-                <p className="text-foreground mb-4 leading-relaxed">
-                  "{testimonial.quote}"
-                </p>
-                <p className="text-sm text-foreground-muted">— {testimonial.author}</p>
+                <p className="text-3xl font-bold gradient-text">{stat.number}</p>
+                <p className="text-sm text-foreground-tertiary mt-1">{stat.label}</p>
               </motion.div>
             ))}
           </div>
@@ -265,26 +327,25 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 text-center">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-3xl mx-auto text-center p-12 bg-gradient-to-br from-accent-primary/10 to-accent-secondary/10 border border-accent-primary/20 rounded-3xl"
         >
-          <h2 className="text-3xl font-bold text-foreground mb-4">
-            One conversation can change everything.
+          <h2 className="text-4xl font-bold text-foreground mb-4">
+            Get lucid. Or stay lost.
           </h2>
-          <p className="text-foreground-muted mb-8">
-            Start for free. No credit card required.
+          <p className="text-foreground-secondary mb-8">
+            Your call.
           </p>
-          <Button
-            size="lg"
-            onClick={() => router.push('/auth')}
-            rightIcon={<ArrowRight size={20} />}
+          <button
+            onClick={() => setShowAssessment(true)}
+            className="btn btn-primary btn-lg"
           >
-            Talk to CC
-          </Button>
+            Get Lucid
+            <ArrowRight size={20} className="ml-2" />
+          </button>
         </motion.div>
       </section>
 
@@ -292,12 +353,10 @@ export default function HomePage() {
       <footer className="py-8 px-6 border-t border-border">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center">
-              <span className="text-sm font-bold text-white">CC</span>
-            </div>
-            <span className="text-foreground-muted">© 2024 CC Mindset</span>
+            <span className="text-xl font-bold gradient-text">LUCID</span>
+            <span className="text-foreground-tertiary">© 2024</span>
           </div>
-          <div className="flex items-center gap-6 text-sm text-foreground-muted">
+          <div className="flex items-center gap-6 text-sm text-foreground-tertiary">
             <a href="/terms" className="hover:text-foreground transition-colors">Terms</a>
             <a href="/privacy" className="hover:text-foreground transition-colors">Privacy</a>
             <a href="/contact" className="hover:text-foreground transition-colors">Contact</a>

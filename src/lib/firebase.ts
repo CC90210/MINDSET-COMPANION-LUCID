@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
+import {
+  getAuth,
+  GoogleAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -9,11 +9,11 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  getDoc, 
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
   updateDoc,
   collection,
   query,
@@ -95,6 +95,22 @@ export async function logOut() {
 
 // ========== USER PROFILE FUNCTIONS ==========
 
+export interface LucidScores {
+  selfAwareness: number;
+  resilience: number;
+  growthOrientation: number;
+  emotionalRegulation: number;
+  innerDialogue: number;
+  overall: number;
+}
+
+export type MindsetArchetype =
+  | 'The Overthinker'
+  | 'The Grinder'
+  | 'The Reactor'
+  | 'The Dormant'
+  | 'The Integrated';
+
 export interface UserProfile {
   uid: string;
   name: string;
@@ -105,20 +121,49 @@ export interface UserProfile {
   createdAt: Timestamp;
   subscriptionTier: 'free' | 'premium';
   stripeCustomerId?: string;
+
+  // Streak & Activity
   streak: number;
   lastActiveDate?: string;
+  daysActive?: number;
+
+  // Lucid Assessment
+  lucidScores?: LucidScores;
+  archetype?: MindsetArchetype;
+  assessmentHistory?: {
+    date: string;
+    scores: LucidScores;
+    archetype: MindsetArchetype;
+  }[];
+
+  // Gamification
+  xp: number;
+  level: number;
+  achievements?: string[];
+  challengesCompleted?: number;
+
+  // Onboarding
   onboarding?: {
     currentStruggle?: string;
     desiredOutcome?: string;
+    completedAt?: string;
   };
+
+  // Rate limiting
   messageCount?: number;
   lastMessageDate?: string;
+  dailyXpEarned?: number;
+  lastXpDate?: string;
+
+  // Stats
+  postsCount?: number;
+  conversationsCount?: number;
 }
 
 export async function createUserProfile(user: User, additionalData?: Partial<UserProfile>) {
   const userRef = doc(db, 'users', user.uid);
   const userSnap = await getDoc(userRef);
-  
+
   if (!userSnap.exists()) {
     const profile: UserProfile = {
       uid: user.uid,
@@ -129,25 +174,27 @@ export async function createUserProfile(user: User, additionalData?: Partial<Use
       createdAt: serverTimestamp() as Timestamp,
       subscriptionTier: 'free',
       streak: 0,
+      xp: 0,
+      level: 1,
       messageCount: 0,
       ...additionalData,
     };
-    
+
     await setDoc(userRef, profile);
     return profile;
   }
-  
+
   return userSnap.data() as UserProfile;
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
-  
+
   if (userSnap.exists()) {
     return userSnap.data() as UserProfile;
   }
-  
+
   return null;
 }
 
@@ -185,7 +232,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
   const conversationsRef = collection(db, 'users', userId, 'conversations');
   const q = query(conversationsRef, orderBy('lastMessageAt', 'desc'), limit(50));
   const snapshot = await getDocs(q);
-  
+
   return snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
@@ -196,13 +243,13 @@ export async function getMessages(userId: string, conversationId: string): Promi
   const messagesRef = collection(db, 'users', userId, 'conversations', conversationId, 'messages');
   const q = query(messagesRef, orderBy('timestamp', 'asc'));
   const snapshot = await getDocs(q);
-  
+
   return snapshot.docs.map(doc => doc.data()) as Message[];
 }
 
 export async function addMessage(
-  userId: string, 
-  conversationId: string, 
+  userId: string,
+  conversationId: string,
   message: Omit<Message, 'timestamp'>
 ) {
   const messagesRef = collection(db, 'users', userId, 'conversations', conversationId, 'messages');
@@ -210,7 +257,7 @@ export async function addMessage(
     ...message,
     timestamp: serverTimestamp(),
   });
-  
+
   // Update conversation
   const conversationRef = doc(db, 'users', userId, 'conversations', conversationId);
   await updateDoc(conversationRef, {
@@ -219,13 +266,13 @@ export async function addMessage(
 }
 
 export function subscribeToMessages(
-  userId: string, 
-  conversationId: string, 
+  userId: string,
+  conversationId: string,
   callback: (messages: Message[]) => void
 ) {
   const messagesRef = collection(db, 'users', userId, 'conversations', conversationId, 'messages');
   const q = query(messagesRef, orderBy('timestamp', 'asc'));
-  
+
   return onSnapshot(q, (snapshot) => {
     const messages = snapshot.docs.map(doc => doc.data()) as Message[];
     callback(messages);
@@ -275,24 +322,24 @@ export async function getPosts(
 ): Promise<{ posts: Post[]; lastDoc: QueryDocumentSnapshot<DocumentData> | null }> {
   const postsRef = collection(db, 'posts');
   let q = query(postsRef, orderBy('createdAt', 'desc'), limit(pageSize));
-  
+
   if (channel) {
     q = query(postsRef, where('channel', '==', channel), orderBy('createdAt', 'desc'), limit(pageSize));
   }
-  
+
   if (lastDoc) {
     q = query(q, startAfter(lastDoc));
   }
-  
+
   const snapshot = await getDocs(q);
-  
+
   const posts = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
   })) as Post[];
-  
+
   const last = snapshot.docs[snapshot.docs.length - 1] || null;
-  
+
   return { posts, lastDoc: last };
 }
 
@@ -305,11 +352,11 @@ export async function getFollowingPosts(
   const followingRef = collection(db, 'users', userId, 'following');
   const followingSnap = await getDocs(followingRef);
   const followingIds = followingSnap.docs.map(doc => doc.id);
-  
+
   if (followingIds.length === 0) {
     return { posts: [], lastDoc: null };
   }
-  
+
   // Get posts from followed users
   const postsRef = collection(db, 'posts');
   let q = query(
@@ -318,20 +365,20 @@ export async function getFollowingPosts(
     orderBy('createdAt', 'desc'),
     limit(pageSize)
   );
-  
+
   if (lastDoc) {
     q = query(q, startAfter(lastDoc));
   }
-  
+
   const snapshot = await getDocs(q);
-  
+
   const posts = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
   })) as Post[];
-  
+
   const last = snapshot.docs[snapshot.docs.length - 1] || null;
-  
+
   return { posts, lastDoc: last };
 }
 
@@ -339,7 +386,7 @@ export async function likePost(postId: string, userId: string) {
   const likeRef = doc(db, 'posts', postId, 'likes', userId);
   const likeSnap = await getDoc(likeRef);
   const postRef = doc(db, 'posts', postId);
-  
+
   if (likeSnap.exists()) {
     // Unlike
     await deleteDoc(likeRef);
@@ -362,14 +409,14 @@ export async function isPostLiked(postId: string, userId: string): Promise<boole
 export async function addComment(postId: string, data: Omit<Comment, 'id' | 'createdAt'>) {
   const commentsRef = collection(db, 'posts', postId, 'comments');
   const postRef = doc(db, 'posts', postId);
-  
+
   const newComment = await addDoc(commentsRef, {
     ...data,
     createdAt: serverTimestamp(),
   });
-  
+
   await updateDoc(postRef, { commentCount: increment(1) });
-  
+
   return newComment.id;
 }
 
@@ -377,7 +424,7 @@ export async function getComments(postId: string): Promise<Comment[]> {
   const commentsRef = collection(db, 'posts', postId, 'comments');
   const q = query(commentsRef, orderBy('createdAt', 'asc'));
   const snapshot = await getDocs(q);
-  
+
   return snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
@@ -388,25 +435,25 @@ export async function getComments(postId: string): Promise<Comment[]> {
 
 export async function followUser(currentUserId: string, targetUserId: string) {
   const batch = writeBatch(db);
-  
+
   const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
   const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-  
+
   batch.set(followingRef, { createdAt: serverTimestamp() });
   batch.set(followerRef, { createdAt: serverTimestamp() });
-  
+
   await batch.commit();
 }
 
 export async function unfollowUser(currentUserId: string, targetUserId: string) {
   const batch = writeBatch(db);
-  
+
   const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
   const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-  
+
   batch.delete(followingRef);
   batch.delete(followerRef);
-  
+
   await batch.commit();
 }
 
@@ -453,21 +500,21 @@ export async function getOrCreateDMConversation(
   const dmsRef = collection(db, 'directMessages');
   const q = query(dmsRef, where('participants', 'array-contains', userId1));
   const snapshot = await getDocs(q);
-  
+
   for (const doc of snapshot.docs) {
     const data = doc.data() as DMConversation;
     if (data.participants.includes(userId2)) {
       return doc.id;
     }
   }
-  
+
   // Create new conversation
   const newDm = await addDoc(dmsRef, {
     participants: [userId1, userId2],
     lastMessage: '',
     lastMessageAt: serverTimestamp(),
   });
-  
+
   return newDm.id;
 }
 
@@ -478,14 +525,14 @@ export async function sendDirectMessage(
 ) {
   const messagesRef = collection(db, 'directMessages', conversationId, 'messages');
   const conversationRef = doc(db, 'directMessages', conversationId);
-  
+
   await addDoc(messagesRef, {
     senderId,
     content,
     createdAt: serverTimestamp(),
     read: false,
   });
-  
+
   await updateDoc(conversationRef, {
     lastMessage: content,
     lastMessageAt: serverTimestamp(),
@@ -500,7 +547,7 @@ export async function getDMConversations(userId: string): Promise<DMConversation
     orderBy('lastMessageAt', 'desc')
   );
   const snapshot = await getDocs(q);
-  
+
   return snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
@@ -513,7 +560,7 @@ export function subscribeToDMMessages(
 ) {
   const messagesRef = collection(db, 'directMessages', conversationId, 'messages');
   const q = query(messagesRef, orderBy('createdAt', 'asc'));
-  
+
   return onSnapshot(q, (snapshot) => {
     const messages = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -528,29 +575,29 @@ export function subscribeToDMMessages(
 export async function submitDailyCheckin(userId: string, response: string) {
   const today = new Date().toISOString().split('T')[0];
   const checkinRef = doc(db, 'dailyCheckins', today, 'responses', userId);
-  
+
   await setDoc(checkinRef, {
     response,
     createdAt: serverTimestamp(),
   });
-  
+
   // Update user streak
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
-  
+
   if (userSnap.exists()) {
     const userData = userSnap.data() as UserProfile;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
-    
+
     let newStreak = 1;
     if (userData.lastActiveDate === yesterdayStr) {
       newStreak = (userData.streak || 0) + 1;
     } else if (userData.lastActiveDate === today) {
       newStreak = userData.streak || 1;
     }
-    
+
     await updateDoc(userRef, {
       streak: newStreak,
       lastActiveDate: today,
@@ -573,22 +620,22 @@ export async function uploadImage(
 
 export async function checkMessageLimit(userId: string): Promise<{ canSend: boolean; remaining: number }> {
   const userSnap = await getDoc(doc(db, 'users', userId));
-  
+
   if (!userSnap.exists()) {
     return { canSend: false, remaining: 0 };
   }
-  
+
   const userData = userSnap.data() as UserProfile;
   const today = new Date().toISOString().split('T')[0];
-  
+
   // Premium users have unlimited messages
   if (userData.subscriptionTier === 'premium') {
     return { canSend: true, remaining: Infinity };
   }
-  
+
   // Free tier: 5 messages per day
   const FREE_LIMIT = 5;
-  
+
   if (userData.lastMessageDate !== today) {
     // Reset count for new day
     await updateDoc(doc(db, 'users', userId), {
@@ -597,17 +644,17 @@ export async function checkMessageLimit(userId: string): Promise<{ canSend: bool
     });
     return { canSend: true, remaining: FREE_LIMIT };
   }
-  
+
   const count = userData.messageCount || 0;
   const remaining = Math.max(0, FREE_LIMIT - count);
-  
+
   return { canSend: count < FREE_LIMIT, remaining };
 }
 
 export async function incrementMessageCount(userId: string) {
   const today = new Date().toISOString().split('T')[0];
   const userRef = doc(db, 'users', userId);
-  
+
   await updateDoc(userRef, {
     messageCount: increment(1),
     lastMessageDate: today,

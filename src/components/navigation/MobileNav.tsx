@@ -1,46 +1,49 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Home, MessageCircle, PlusCircle, Mail, User } from 'lucide-react';
+import { Home, MessageCircle, Plus, Users, User } from 'lucide-react';
+import { useUIStore } from '@/lib/store';
 
 const navItems = [
-    { href: '/feed', icon: Home, label: 'Feed' },
-    { href: '/chat', icon: MessageCircle, label: 'CC' },
-    { href: '/post', icon: PlusCircle, label: 'Post', isAction: true },
-    { href: '/messages', icon: Mail, label: 'DMs' },
-    { href: '/profile', icon: User, label: 'Me' },
+    { href: '/home', icon: Home, label: 'Home' },
+    { href: '/chat', icon: MessageCircle, label: 'Chat' },
+    { href: '/post', icon: Plus, label: 'Post', isAction: true },
+    { href: '/feed', icon: Users, label: 'Community' },
+    { href: '/profile', icon: User, label: 'Profile' },
 ];
 
 export default function MobileNav() {
     const pathname = usePathname();
+    const { openPostModal } = useUIStore();
 
     return (
-        <nav className="mobile-nav">
-            <div className="flex items-center justify-around h-full max-w-lg mx-auto px-2">
+        <nav className="mobile-nav lg:hidden">
+            <div className="flex items-center justify-around h-full px-2">
                 {navItems.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
+                    const isActive = pathname === item.href;
                     const Icon = item.icon;
 
+                    // Action button (center plus)
                     if (item.isAction) {
                         return (
-                            <Link
+                            <button
                                 key={item.href}
-                                href={item.href}
-                                className="relative flex items-center justify-center"
+                                onClick={() => openPostModal()}
+                                className="relative -mt-6"
                             >
                                 <motion.div
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center shadow-lg"
+                                    whileTap={{ scale: 0.9 }}
+                                    className="w-14 h-14 rounded-full flex items-center justify-center"
                                     style={{
-                                        boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)',
+                                        background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                                        boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4)',
                                     }}
                                 >
-                                    <Icon size={24} className="text-white" />
+                                    <Plus size={28} className="text-white" />
                                 </motion.div>
-                            </Link>
+                            </button>
                         );
                     }
 
@@ -48,38 +51,26 @@ export default function MobileNav() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            className="relative flex flex-col items-center justify-center py-2 px-4 group"
+                            className="relative flex flex-col items-center justify-center py-2 px-3"
                         >
                             <motion.div
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="relative"
-                            >
-                                <Icon
-                                    size={24}
-                                    className={`transition-colors duration-200 ${isActive
-                                            ? 'text-accent-primary'
-                                            : 'text-foreground-muted group-hover:text-foreground'
-                                        }`}
-                                />
-
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="navIndicator"
-                                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-accent-primary rounded-full"
-                                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                    />
-                                )}
-                            </motion.div>
-
-                            <span
-                                className={`text-xs mt-1 transition-colors duration-200 ${isActive
+                                whileTap={{ scale: 0.9 }}
+                                className={`p-2 rounded-xl transition-colors ${isActive
                                         ? 'text-accent-primary'
-                                        : 'text-foreground-subtle group-hover:text-foreground-muted'
+                                        : 'text-foreground-tertiary'
                                     }`}
                             >
-                                {item.label}
-                            </span>
+                                <Icon size={24} />
+                            </motion.div>
+
+                            {/* Active indicator */}
+                            {isActive && (
+                                <motion.div
+                                    layoutId="nav-indicator"
+                                    className="absolute bottom-1 w-1 h-1 bg-accent-primary rounded-full"
+                                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                />
+                            )}
                         </Link>
                     );
                 })}

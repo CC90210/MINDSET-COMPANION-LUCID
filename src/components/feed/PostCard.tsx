@@ -2,16 +2,18 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Flag, EyeOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { Heart, MessageCircle, Share2, MoreHorizontal, User as UserIcon, Hash } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
-import Link from 'next/link';
+import { getLevelFromXP } from '@/lib/gamification';
 
 interface PostCardProps {
     id: string;
     authorId: string;
     authorName: string;
     authorAvatar?: string;
+    authorLevel?: number;
+    authorXp?: number;
     content: string;
     imageUrl?: string;
     channel?: string;
@@ -20,9 +22,10 @@ interface PostCardProps {
     likeCount: number;
     commentCount: number;
     isLiked?: boolean;
-    onLike: (postId: string) => void;
-    onComment: (postId: string) => void;
     currentUserId?: string;
+    onLike?: (id: string) => void;
+    onComment?: (id: string) => void;
+    onShare?: (id: string) => void;
 }
 
 export default function PostCard({
@@ -30,6 +33,8 @@ export default function PostCard({
     authorId,
     authorName,
     authorAvatar,
+    authorLevel,
+    authorXp,
     content,
     imageUrl,
     channel,
@@ -38,109 +43,100 @@ export default function PostCard({
     likeCount,
     commentCount,
     isLiked = false,
+    currentUserId,
     onLike,
     onComment,
-    currentUserId,
+    onShare,
 }: PostCardProps) {
-    const [showMenu, setShowMenu] = useState(false);
     const [liked, setLiked] = useState(isLiked);
     const [likes, setLikes] = useState(likeCount);
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    const levelInfo = authorXp !== undefined ? getLevelFromXP(authorXp) :
+        authorLevel ? { level: authorLevel, name: '' } : null;
 
     const handleLike = () => {
+        setIsAnimating(true);
         setLiked(!liked);
         setLikes(liked ? likes - 1 : likes + 1);
-        onLike(id);
+        onLike?.(id);
+        setTimeout(() => setIsAnimating(false), 300);
     };
 
-    const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
+    const handleShare = async () => {
+        try {
+            await navigator.share({
+                text: content.slice(0, 100) + (content.length > 100 ? '...' : ''),
+                url: `https://getlucid.app/post/${id}`,
+            });
+        } catch {
+            // Fallback: copy link
+            navigator.clipboard.writeText(`https://getlucid.app/post/${id}`);
+        }
+        onShare?.(id);
+    };
 
     return (
         <motion.article
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="post-card"
         >
             {/* Header */}
-            <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                    {isAnonymous ? (
-                        <div className="w-10 h-10 rounded-full bg-background-hover flex items-center justify-center">
-                            <EyeOff size={18} className="text-foreground-subtle" />
-                        </div>
-                    ) : (
-                        <Link href={`/profile/${authorId}`}>
-                            <Avatar src={authorAvatar} size="md" />
-                        </Link>
-                    )}
+            <div className="flex items-start gap-3 mb-3">
+                {isAnonymous ? (
+                    <div className="w-10 h-10 rounded-full bg-background-tertiary flex items-center justify-center">
+                        <UserIcon size={20} className="text-foreground-tertiary" />
+                    </div>
+                ) : (
+                    <Avatar src={authorAvatar} size="md" />
+                )}
 
-                    <div>
-                        <Link
-                            href={isAnonymous ? '#' : `/profile/${authorId}`}
-                            className={`font-medium ${isAnonymous ? 'text-foreground-muted cursor-default' : 'text-foreground hover:underline'}`}
-                        >
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">
                             {isAnonymous ? 'Anonymous' : authorName}
-                        </Link>
-                        <div className="flex items-center gap-2 text-xs text-foreground-subtle">
-                            <span>{timeAgo}</span>
-                            {channel && (
-                                <>
-                                    <span>•</span>
-                                    <Link
-                                        href={`/feed?channel=${channel}`}
-                                        className="text-accent-primary hover:underline"
-                                    >
-                                        #{channel}
-                                    </Link>
-                                </>
-                            )}
-                        </div>
+                        </span>
+
+                        {levelInfo && !isAnonymous && (
+                            <span className="level-badge text-xs">
+                                {levelInfo.level}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm text-foreground-tertiary">
+                        <span>{formatDistanceToNow(createdAt, { addSuffix: true })}</span>
+
+                        {channel && (
+                            <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                    <Hash size={12} />
+                                    {channel}
+                                </span>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                {/* Menu */}
-                <div className="relative">
-                    <button
-                        onClick={() => setShowMenu(!showMenu)}
-                        className="p-2 rounded-lg text-foreground-subtle hover:text-foreground hover:bg-background-hover transition-colors"
-                    >
-                        <MoreHorizontal size={18} />
-                    </button>
-
-                    {showMenu && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="absolute right-0 top-full mt-1 w-48 bg-background-elevated border border-border rounded-xl shadow-lg overflow-hidden z-10"
-                        >
-                            <button
-                                onClick={() => {
-                                    // TODO: Report functionality
-                                    setShowMenu(false);
-                                }}
-                                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground-muted hover:text-foreground hover:bg-background-hover transition-colors"
-                            >
-                                <Flag size={16} />
-                                Report post
-                            </button>
-                        </motion.div>
-                    )}
-                </div>
+                <button className="p-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors">
+                    <MoreHorizontal size={18} />
+                </button>
             </div>
 
             {/* Content */}
-            <div className="mb-4">
-                <p className="text-foreground whitespace-pre-wrap break-words leading-relaxed">
-                    {content}
-                </p>
-            </div>
+            <p className="text-foreground whitespace-pre-wrap leading-relaxed mb-4">
+                {content}
+            </p>
 
             {/* Image */}
             {imageUrl && (
                 <div className="mb-4 rounded-xl overflow-hidden">
                     <img
                         src={imageUrl}
-                        alt="Post attachment"
-                        className="w-full h-auto max-h-96 object-cover"
+                        alt="Post image"
+                        className="w-full object-cover max-h-96"
                     />
                 </div>
             )}
@@ -148,40 +144,31 @@ export default function PostCard({
             {/* Actions */}
             <div className="flex items-center gap-6 pt-3 border-t border-border">
                 <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                     onClick={handleLike}
-                    className={`flex items-center gap-2 transition-colors ${liked ? 'text-error' : 'text-foreground-muted hover:text-error'
+                    animate={isAnimating ? { scale: [1, 1.3, 1] } : {}}
+                    className={`flex items-center gap-2 text-sm transition-colors ${liked
+                            ? 'text-error'
+                            : 'text-foreground-tertiary hover:text-error'
                         }`}
                 >
-                    <Heart size={20} fill={liked ? 'currentColor' : 'none'} />
-                    <span className="text-sm">{likes > 0 ? likes : ''}</span>
+                    <Heart size={18} className={liked ? 'fill-current' : ''} />
+                    <span>{likes > 0 ? likes : ''}</span>
                 </motion.button>
 
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onComment(id)}
-                    className="flex items-center gap-2 text-foreground-muted hover:text-accent-secondary transition-colors"
+                <button
+                    onClick={() => onComment?.(id)}
+                    className="flex items-center gap-2 text-sm text-foreground-tertiary hover:text-accent-primary transition-colors"
                 >
-                    <MessageCircle size={20} />
-                    <span className="text-sm">{commentCount > 0 ? commentCount : ''}</span>
-                </motion.button>
+                    <MessageCircle size={18} />
+                    <span>{commentCount > 0 ? commentCount : ''}</span>
+                </button>
 
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                        navigator.share?.({
-                            title: `Post by ${isAnonymous ? 'Anonymous' : authorName}`,
-                            text: content.slice(0, 100),
-                            url: window.location.origin + `/post/${id}`,
-                        }).catch(() => { });
-                    }}
-                    className="flex items-center gap-2 text-foreground-muted hover:text-foreground transition-colors"
+                <button
+                    onClick={handleShare}
+                    className="flex items-center gap-2 text-sm text-foreground-tertiary hover:text-foreground transition-colors"
                 >
-                    <Share2 size={20} />
-                </motion.button>
+                    <Share2 size={18} />
+                </button>
             </div>
         </motion.article>
     );

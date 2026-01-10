@@ -1,28 +1,55 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { CC_SYSTEM_PROMPT, DEEP_DIVE_MODIFIER, formatUserContext, formatConversationHistory } from './ai-prompt';
+import {
+    CC_SYSTEM_PROMPT,
+    DEEP_DIVE_MODIFIER,
+    formatUserContext,
+    formatConversationHistory,
+    checkForCrisis,
+    CRISIS_RESPONSE
+} from './ai-prompt';
 
-// Initialize Gemini client
+// Initialize the Gemini client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
+
+export interface UserContext {
+    name: string;
+    lucidScores?: {
+        selfAwareness: number;
+        resilience: number;
+        growthOrientation: number;
+        emotionalRegulation: number;
+        innerDialogue: number;
+        overall: number;
+    };
+    archetype?: string;
+    currentStruggle?: string;
+    desiredOutcome?: string;
+    streak?: number;
+    level?: number;
+    xp?: number;
+    daysInApp?: number;
+}
 
 export interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
 }
 
-export interface UserContext {
-    name: string;
-    onboarding?: {
-        currentStruggle?: string;
-        desiredOutcome?: string;
-    };
-    streak?: number;
-}
-
 export interface ChatOptions {
     deepDive?: boolean;
-    accountability?: boolean;
 }
 
+// Check for crisis keywords
+export function checkForCrisisKeywords(message: string): boolean {
+    return checkForCrisis(message);
+}
+
+// Get crisis response
+export function getCrisisResponse(name: string): string {
+    return CRISIS_RESPONSE(name);
+}
+
+// Generate CC response
 export async function generateCCResponse(
     userMessage: string,
     conversationHistory: ChatMessage[],
@@ -30,6 +57,11 @@ export async function generateCCResponse(
     options: ChatOptions = {}
 ): Promise<string> {
     try {
+        // Check for crisis keywords first
+        if (checkForCrisis(userMessage)) {
+            return CRISIS_RESPONSE(userContext.name);
+        }
+
         // Build the complete system prompt
         let systemPrompt = CC_SYSTEM_PROMPT;
 
@@ -54,106 +86,88 @@ export async function generateCCResponse(
             },
         });
 
-        // Build the chat history format Gemini expects
-        const geminiHistory = conversationHistory.map(msg => ({
+        // Format chat history for Gemini
+        const history = conversationHistory.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
             parts: [{ text: msg.content }],
         }));
 
-        // Start chat with history
+        // Start chat with system prompt
         const chat = model.startChat({
-            history: geminiHistory.length > 0 ? geminiHistory : undefined,
-            systemInstruction: systemPrompt,
+            history: [
+                {
+                    role: 'user',
+                    parts: [{ text: 'You are CC, the AI companion in Lucid. Here is your complete system context and personality guide:\n\n' + systemPrompt }],
+                },
+                {
+                    role: 'model',
+                    parts: [{ text: `Got it. I'm CC in Lucid. Ready to help ${userContext.name || 'this person'} get lucid. What's on their mind?` }],
+                },
+                ...history.slice(0, -1), // Don't include the current message in history
+            ],
         });
 
-        // Send the message and get response
+        // Send the current message
         const result = await chat.sendMessage(userMessage);
-        const response = result.response;
-        const text = response.text();
+        const response = result.response.text();
 
-        if (!text) {
-            throw new Error('Empty response from AI');
-        }
-
-        return text;
+        return response;
     } catch (error) {
         console.error('Error generating CC response:', error);
-
         // Return a fallback response that stays in character
-        return `Hey ${userContext.name || 'there'}, I hit a snag processing that. Mind trying again? Sometimes the best insights come on the second attempt.`;
+        return `${userContext.name || 'Hey'}, something's off on my end. Mind trying that again? Sometimes the best insights come on the second attempt.`;
     }
 }
 
-// Check for crisis keywords
-export function checkForCrisisKeywords(message: string): boolean {
-    const crisisKeywords = [
-        'suicide',
-        'suicidal',
-        'kill myself',
-        'end my life',
-        'want to die',
-        'don\'t want to live',
-        'self harm',
-        'self-harm',
-        'cutting myself',
-        'hurt myself',
-        'no reason to live',
-    ];
+// Detect breakthrough moment for coaching upsell
+export function detectBreakthroughMoment(
+    messages: ChatMessage[],
+    currentResponse: string
+): boolean {
+    if (messages.length < 6) return false; // Need enough conversation
 
-    const lowerMessage = message.toLowerCase();
-    return crisisKeywords.some(keyword => lowerMessage.includes(keyword));
-}
-
-// Generate crisis response with resources
-export function getCrisisResponse(userName: string): string {
-    return `${userName}, I hear you, and I want you to know that what you're feeling right now matters. This is serious, and I'm genuinely glad you said something.
-
-I care about you, but this is bigger than what I can help with in a conversation. Please reach out to someone trained to help:
-
-📞 **National Suicide Prevention Lifeline:** 988 (US)
-💬 **Crisis Text Line:** Text HOME to 741741
-🌍 **International:** iasp.info/resources/Crisis_Centres
-
-You don't have to face this alone. These people are ready to listen right now.
-
-Are you somewhere safe? Is there someone you trust you could reach out to?`;
-}
-
-// Suggest premium upgrade during breakthrough moments
-export function detectBreakthroughMoment(conversationHistory: ChatMessage[]): boolean {
-    if (conversationHistory.length < 6) return false;
-
-    const recentMessages = conversationHistory.slice(-4);
-    const userMessages = recentMessages.filter(m => m.role === 'user');
-
-    // Look for signs of breakthrough
     const breakthroughIndicators = [
-        'i never thought of it that way',
-        'that makes so much sense',
-        'wow',
+        'never thought of it that way',
         'you\'re right',
-        'i needed to hear this',
-        'this is exactly what',
+        'that makes so much sense',
+        'i didn\'t realize',
+        'i see it now',
         'that hit different',
-        'holy shit',
-        'damn',
-        'i get it now',
+        'okay wow',
+        'this is exactly what i needed',
     ];
 
-    return userMessages.some(m =>
-        breakthroughIndicators.some(indicator =>
-            m.content.toLowerCase().includes(indicator)
-        )
+    const recentUserMessages = messages
+        .filter(m => m.role === 'user')
+        .slice(-3)
+        .map(m => m.content.toLowerCase());
+
+    return recentUserMessages.some(msg =>
+        breakthroughIndicators.some(indicator => msg.includes(indicator))
     );
 }
 
-// Generate coaching upsell suggestion
-export function getCoachingUpsellMessage(userName: string): string {
-    return `${userName}, the work you're doing here is real. The insights you're having? That's not small stuff.
+// Generate coaching suggestion based on context
+export function generateCoachingUpsell(userContext: UserContext): string {
+    const archetype = userContext.archetype || '';
 
-If you're feeling called to go deeper — like, really dig into this with personalized guidance — I offer intensive coaching sessions. One conversation sometimes unlocks years of stuck patterns.
+    const upsells: Record<string, string> = {
+        'The Overthinker': `${userContext.name}, you're doing real work here. The clarity you're finding in these conversations — imagine going even deeper. If you ever want to break through the overthinking pattern with a real conversation, I do 1:1 calls. No sales pitch, just genuine exploration.`,
+        'The Grinder': `${userContext.name}, you've got the work ethic. What you might need is direction. If you want to make sure you're building toward the right things, I offer 1:1 calls. Could be worth exploring.`,
+        'The Reactor': `${userContext.name}, your energy is your asset. Learning to channel it? That's the unlock. If you want personalized strategies for that, I do 1:1 calls. Something to consider.`,
+        default: `${userContext.name}, you're showing up differently now than when we started. If you want to accelerate that shift with a real conversation, I offer 1:1 calls. Just putting it on your radar.`,
+    };
 
-[Book a session → /coaching]
+    return upsells[archetype] || upsells.default;
+}
 
-No pressure. This is your journey. I'm just pointing out a door if you want to walk through it.`;
+// Format upgrade prompt for rate-limited users
+export function getRateLimitMessage(name: string, messagesRemaining: number): string {
+    if (messagesRemaining === 0) {
+        return `${name}, we've hit the daily limit for free accounts. Tomorrow's a new day — or Lucid Premium unlocks unlimited conversations. Either way, I'll be here.`;
+    }
+    if (messagesRemaining === 1) {
+        return `One message left today, ${name}. Make it count. Or, you know, Premium is always an option.`;
+    }
+    return '';
 }

@@ -1,37 +1,43 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "CC Mindset Companion | Transform Your Thinking",
-  description: "Your AI-powered mindset transformation companion. Talk to CC, connect with others on the same journey, and become who you're meant to be.",
-  keywords: ["mindset", "personal growth", "AI companion", "transformation", "coaching", "community"],
-  authors: [{ name: "CC" }],
+  title: "Lucid | See Yourself Clearly",
+  description: "Get lucid. Take the mindset assessment. Talk to CC. Join a community of people doing the real work. Transform your thinking.",
+  keywords: ["mindset", "personal growth", "AI companion", "mental health", "self-awareness", "community"],
+  authors: [{ name: "Lucid" }],
   openGraph: {
-    title: "CC Mindset Companion",
-    description: "Your AI-powered mindset transformation companion.",
+    title: "Lucid — Get Lucid",
+    description: "Take the mindset assessment. Know your score. Transform your thinking.",
     type: "website",
     locale: "en_US",
-    siteName: "CC Mindset",
+    siteName: "Lucid",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CC Mindset Companion",
-    description: "Your AI-powered mindset transformation companion.",
+    title: "What's your Lucid Score?",
+    description: "Take the free mindset assessment. 2 minutes. No signup required.",
   },
-  viewport: "width=device-width, initial-scale=1, viewport-fit=cover",
-  themeColor: "#0a0a0a",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0A0A0A",
 };
 
 export default function RootLayout({
@@ -41,9 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider>
           {children}
         </AuthProvider>
