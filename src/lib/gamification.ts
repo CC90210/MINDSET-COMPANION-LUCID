@@ -187,7 +187,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     {
         id: 'voice-found',
         name: 'Voice Found',
-        description: 'Have your first conversation with CC',
+        description: 'Have your first conversation with Lucid',
         icon: '💬',
         xpReward: 25,
         condition: (stats) => stats.conversationsCount >= 1,

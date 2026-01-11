@@ -7,7 +7,7 @@ import { Home, MessageCircle, Plus, Users, User } from 'lucide-react';
 import { useUIStore } from '@/lib/store';
 
 const navItems = [
-    { href: '/home', icon: Home, label: 'Home' },
+    { href: '/dashboard', icon: Home, label: 'Home' },
     { href: '/chat', icon: MessageCircle, label: 'Chat' },
     { href: '/post', icon: Plus, label: 'Post', isAction: true },
     { href: '/feed', icon: Users, label: 'Community' },
@@ -56,8 +56,8 @@ export default function MobileNav() {
                             <motion.div
                                 whileTap={{ scale: 0.9 }}
                                 className={`p-2 rounded-xl transition-colors ${isActive
-                                        ? 'text-accent-primary'
-                                        : 'text-foreground-tertiary'
+                                    ? 'text-accent-primary'
+                                    : 'text-foreground-tertiary'
                                     }`}
                             >
                                 <Icon size={24} />

@@ -8,10 +8,12 @@ import { getLevelFromXP, getStreakBadge, formatXP, SAMPLE_CHALLENGES } from '@/l
 import { formatDimensionName, getDimensionEmoji, getScoreLevel } from '@/lib/assessment';
 import DailyCheckin from '@/components/feed/DailyCheckin';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
     const { profile } = useAuth();
     const [greeting, setGreeting] = useState('');
+    const router = useRouter();
 
     useEffect(() => {
         const hour = new Date().getHours();
@@ -89,7 +91,7 @@ export default function DashboardPage() {
                             {profile.lucidScores && (
                                 <div className="mt-4 pt-4 border-t border-border grid grid-cols-5 gap-2">
                                     {dimensions.map((dim) => {
-                                        const score = profile.lucidScores?.[dim] || 0;
+                                        const score = profile.lucidScores?.[dim as keyof typeof profile.lucidScores] || 0;
                                         const level = getScoreLevel(score);
                                         return (
                                             <div key={dim} className="text-center">
@@ -228,7 +230,7 @@ export default function DashboardPage() {
                 >
                     <Link href="/chat" className="card card-interactive p-4 text-center">
                         <span className="text-2xl mb-2 block">💬</span>
-                        <span className="text-sm text-foreground">Talk to CC</span>
+                        <span className="text-sm text-foreground">Talk to Lucid</span>
                     </Link>
                     <Link href="/feed" className="card card-interactive p-4 text-center">
                         <span className="text-2xl mb-2 block">👥</span>

@@ -19,8 +19,8 @@ import { getLevelFromXP, getStreakBadge } from '@/lib/gamification';
 import Avatar from '@/components/ui/Avatar';
 
 const mainNav = [
-    { href: '/home', icon: Home, label: 'Home' },
-    { href: '/chat', icon: MessageCircle, label: 'Chat with CC' },
+    { href: '/dashboard', icon: Home, label: 'Home' },
+    { href: '/chat', icon: MessageCircle, label: 'Chat with Lucid' },
     { href: '/feed', icon: Users, label: 'Community' },
     { href: '/messages', icon: MessageCircle, label: 'Messages' },
 ];

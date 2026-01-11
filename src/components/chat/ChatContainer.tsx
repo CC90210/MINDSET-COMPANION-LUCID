@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Clock, Trash2, MessageCircle } from 'lucide-react';
+import { LucidIcon } from '@/components/ui/LucidIcon';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import { TypingIndicator } from '@/components/ui/Loading';
@@ -213,13 +214,12 @@ export default function ChatContainer() {
                 <div className="flex items-center gap-3">
                     <motion.div
                         whileHover={{ scale: 1.05 }}
-                        className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center"
                     >
-                        <span className="text-sm font-bold text-white">CC</span>
+                        <LucidIcon size={40} />
                     </motion.div>
                     <div>
-                        <h1 className="font-semibold text-foreground">CC</h1>
-                        <p className="text-xs text-foreground-muted">Your mindset companion</p>
+                        <h1 className="font-semibold text-foreground">Lucid</h1>
+                        <p className="text-xs text-foreground-muted">Your clarity companion</p>
                     </div>
                 </div>
 
@@ -302,7 +302,7 @@ export default function ChatContainer() {
                             className="text-center py-12"
                         >
                             <motion.div
-                                className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center"
+                                className="mx-auto mb-6"
                                 animate={{
                                     boxShadow: [
                                         '0 0 20px rgba(139, 92, 246, 0.3)',
@@ -312,7 +312,7 @@ export default function ChatContainer() {
                                 }}
                                 transition={{ duration: 3, repeat: Infinity }}
                             >
-                                <span className="text-3xl font-bold text-white">CC</span>
+                                <LucidIcon size={80} className="mx-auto" />
                             </motion.div>
 
                             <h2 className="text-2xl font-semibold text-foreground mb-2">

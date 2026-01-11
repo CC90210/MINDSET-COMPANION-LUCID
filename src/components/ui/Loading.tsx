@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { LucidIcon } from './LucidIcon';
 
 interface LoadingSpinnerProps {
     size?: 'sm' | 'md' | 'lg';
@@ -112,7 +113,7 @@ export function FullPageLoader({ message = 'Loading...' }: FullPageLoaderProps) 
             >
                 {/* Logo animation */}
                 <motion.div
-                    className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center"
+                    className="mx-auto"
                     animate={{
                         boxShadow: [
                             '0 0 20px rgba(139, 92, 246, 0.3)',
@@ -122,7 +123,7 @@ export function FullPageLoader({ message = 'Loading...' }: FullPageLoaderProps) 
                     }}
                     transition={{ duration: 2, repeat: Infinity }}
                 >
-                    <span className="text-2xl font-bold text-white">CC</span>
+                    <LucidIcon size={64} />
                 </motion.div>
 
                 <LoadingDots />

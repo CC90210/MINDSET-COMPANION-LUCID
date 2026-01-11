@@ -10,7 +10,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Lucid | See Yourself Clearly",
-  description: "Get lucid. Take the mindset assessment. Talk to CC. Join a community of people doing the real work. Transform your thinking.",
+  description: "Get lucid. Take the mindset assessment. Talk to Lucid. Join a community of people doing the real work. Transform your thinking.",
   keywords: ["mindset", "personal growth", "AI companion", "mental health", "self-awareness", "community"],
   authors: [{ name: "Lucid" }],
   openGraph: {

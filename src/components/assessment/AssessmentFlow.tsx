@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Lock, Share2, ChevronRight, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import {
     assessmentQuestions,
     generateAssessmentResult,
@@ -10,7 +11,8 @@ import {
     LucidScores,
     getScoreLevel,
     formatDimensionName,
-    getDimensionEmoji
+    getDimensionEmoji,
+    getArchetypeDetails
 } from '@/lib/assessment';
 import Button from '@/components/ui/Button';
 
@@ -20,12 +22,11 @@ interface AssessmentFlowProps {
 }
 
 export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowProps) {
+    const router = useRouter();
     const [stage, setStage] = useState<'intro' | 'questions' | 'calculating' | 'results'>('intro');
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [answers, setAnswers] = useState<number[]>([]);
     const [result, setResult] = useState<AssessmentResult | null>(null);
-    const [animatedScores, setAnimatedScores] = useState<Partial<LucidScores>>({});
-
     const totalQuestions = assessmentQuestions.length;
     const progress = ((currentQuestion + 1) / totalQuestions) * 100;
 
@@ -45,34 +46,20 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
                 const assessmentResult = generateAssessmentResult(newAnswers);
                 setResult(assessmentResult);
                 setStage('results');
-
-                // Animate scores one by one
-                animateScores(assessmentResult.scores);
-            }, 2000);
+            }, 2000); // 2s calculating delay
         }
     };
 
-    const animateScores = (scores: LucidScores) => {
-        const dimensions = ['selfAwareness', 'resilience', 'growthOrientation', 'emotionalRegulation', 'innerDialogue'] as const;
-
-        dimensions.forEach((dim, index) => {
-            setTimeout(() => {
-                setAnimatedScores(prev => ({
-                    ...prev,
-                    [dim]: scores[dim],
-                }));
-            }, index * 200);
-        });
-
-        setTimeout(() => {
-            setAnimatedScores(prev => ({
-                ...prev,
-                overall: scores.overall,
-            }));
-        }, dimensions.length * 200);
+    const handleUnlock = () => {
+        if (result) {
+            // Store result in local storage so auth page can pick it up
+            localStorage.setItem('lucid_assessment', JSON.stringify(result));
+            // Redirect to pricing or auth with intent to upgrade
+            router.push('/pricing?from=assessment');
+        }
     };
 
-    const handleComplete = () => {
+    const handleMaybeLater = () => {
         if (result) {
             onComplete(result);
         }
@@ -102,7 +89,7 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-2xl font-bold text-foreground mb-4 leading-snug"
+                        className="text-3xl font-bold text-foreground mb-4 leading-tight"
                     >
                         Most people have no idea where they actually stand mentally.
                     </motion.h1>
@@ -125,7 +112,7 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
                     >
                         <Button
                             size="lg"
-                            className="w-full btn-lg"
+                            className="w-full btn-lg h-14 text-lg"
                             onClick={() => setStage('questions')}
                             rightIcon={<Sparkles size={20} />}
                         >
@@ -137,7 +124,7 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
                                 onClick={onSkip}
                                 className="text-foreground-tertiary text-sm hover:text-foreground-secondary transition-colors"
                             >
-                                Skip for now
+                                I already have an account
                             </button>
                         )}
                     </motion.div>
@@ -167,18 +154,18 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={currentQuestion}
-                                initial={{ opacity: 0, x: 30 }}
+                                initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -30 }}
+                                exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.3 }}
                             >
                                 {/* Question number */}
-                                <p className="text-foreground-tertiary text-sm mb-4">
-                                    {currentQuestion + 1} of {totalQuestions}
+                                <p className="text-foreground-tertiary text-sm mb-6 font-medium">
+                                    {currentQuestion + 1} <span className="text-foreground-muted">/ {totalQuestions}</span>
                                 </p>
 
-                                {/* Question */}
-                                <h2 className="text-xl font-semibold text-foreground mb-8 leading-relaxed">
+                                {/* Question - Typing effect simulation implicitly via fadeIn */}
+                                <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-10 leading-snug">
                                     {question.question}
                                 </h2>
 
@@ -189,9 +176,9 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
                                             key={index}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: index * 0.1 }}
+                                            transition={{ delay: index * 0.05 + 0.2 }}
                                             onClick={() => handleAnswer(index)}
-                                            className="assessment-option"
+                                            className="w-full p-4 md:p-5 text-left bg-background-elevated border border-border rounded-xl hover:border-accent-primary/50 hover:bg-accent-primary/5 transition-all duration-200 text-foreground-secondary hover:text-foreground text-lg"
                                         >
                                             {option.text}
                                         </motion.button>
@@ -205,7 +192,7 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
         );
     }
 
-    // Calculating
+    // Calculating / Analyzing
     if (stage === 'calculating') {
         return (
             <div className="min-h-screen flex items-center justify-center p-6 bg-background">
@@ -217,141 +204,120 @@ export default function AssessmentFlow({ onComplete, onSkip }: AssessmentFlowPro
                     <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                        className="w-16 h-16 mx-auto mb-6 rounded-full border-2 border-accent-primary border-t-transparent"
+                        className="w-16 h-16 mx-auto mb-8 rounded-full border-2 border-accent-primary border-t-transparent"
                     />
-                    <p className="text-foreground-secondary">Analyzing your responses...</p>
+                    <motion.h2
+                        className="text-2xl font-bold text-foreground mb-2"
+                        animate={{ opacity: [1, 0.5, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                        Calculating your clear score...
+                    </motion.h2>
+                    <p className="text-foreground-secondary">Analyzing 10 mental dimensions</p>
                 </motion.div>
             </div>
         );
     }
 
-    // Results
+    // Results (Paywall Moment)
     if (stage === 'results' && result) {
-        const dimensions = ['selfAwareness', 'resilience', 'growthOrientation', 'emotionalRegulation', 'innerDialogue'] as const;
-
         return (
             <div className="min-h-screen bg-background py-8 px-4 overflow-y-auto">
                 <div className="max-w-md mx-auto">
-                    {/* Header */}
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center mb-8"
-                    >
-                        <p className="text-foreground-tertiary text-sm mb-2 uppercase tracking-wider">
+                    {/* Header Card */}
+                    <div className="relative mb-8 pt-8 pb-12 px-8 bg-background-elevated border border-border rounded-3xl text-center overflow-hidden">
+                        {/* Background effect */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-accent-primary/5 blur-3xl rounded-full" />
+
+                        <p className="text-foreground-tertiary text-sm mb-6 uppercase tracking-widest font-medium">
                             Your Lucid Score
                         </p>
 
-                        {/* Overall Score */}
-                        <motion.div
-                            initial={{ scale: 0.5, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ delay: 0.3, type: 'spring' }}
-                            className="mb-4"
-                        >
-                            <span className="score-display">
-                                {animatedScores.overall ?? 0}
+                        <div className="relative inline-block mb-6">
+                            <span className="text-7xl font-bold gradient-text tracking-tighter">
+                                {result.scores.overall}
                             </span>
-                        </motion.div>
+                        </div>
 
-                        {/* Archetype */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
-                        >
-                            <h2 className="text-2xl font-bold text-foreground mb-2">
+                        <div className="space-y-3">
+                            <h2 className="text-2xl font-bold text-foreground">
                                 "{result.archetype}"
                             </h2>
-                            <p className="text-foreground-secondary italic">
+                            <p className="text-foreground-secondary italic text-lg leading-relaxed">
                                 {result.insight}
                             </p>
-                        </motion.div>
-                    </motion.div>
-
-                    {/* Dimension Scores */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
-                        className="card mb-8"
-                    >
-                        <div className="space-y-4">
-                            {dimensions.map((dim, index) => {
-                                const score = animatedScores[dim] ?? 0;
-                                const level = getScoreLevel(score);
-
-                                return (
-                                    <motion.div
-                                        key={dim}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.8 + index * 0.1 }}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-foreground text-sm flex items-center gap-2">
-                                                <span>{getDimensionEmoji(dim)}</span>
-                                                {formatDimensionName(dim)}
-                                            </span>
-                                            <span className="text-foreground font-semibold">{score}</span>
-                                        </div>
-                                        <div className="score-bar">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${score}%` }}
-                                                transition={{ delay: 1 + index * 0.1, duration: 0.8 }}
-                                                className={`score-bar-fill score-${level}`}
-                                            />
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
                         </div>
-                    </motion.div>
+                    </div>
 
-                    {/* Archetype Description */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.5 }}
-                        className="card mb-8"
-                    >
-                        <h3 className="text-foreground font-semibold mb-2">What this means</h3>
-                        <p className="text-foreground-secondary text-sm leading-relaxed">
-                            {result.archetypeDescription}
-                        </p>
-                    </motion.div>
+                    {/* Paywall / Blurred Section */}
+                    <div className="relative mb-8">
+                        {/* Blurred Content Preview */}
+                        <div className="opacity-50 blur-[2px] pointer-events-none select-none">
+                            <h3 className="text-foreground font-semibold mb-4 flex items-center gap-2">
+                                <Lock size={16} /> Full Lucid Profile
+                            </h3>
+                            <div className="space-y-4">
+                                {['Self-Awareness', 'Resilience', 'Growth Orientation', 'Emotional Regulation'].map((dim, i) => (
+                                    <div key={i} className="flex flex-col gap-1">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-foreground-secondary">{dim}</span>
+                                            <span className="text-foreground-muted">??</span>
+                                        </div>
+                                        <div className="h-2 bg-background-tertiary rounded-full overflow-hidden">
+                                            <div className="h-full bg-accent-primary/30 w-1/2" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
 
-                    {/* Actions */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.7 }}
-                        className="space-y-3"
-                    >
-                        <Button
-                            className="w-full"
-                            size="lg"
-                            onClick={handleComplete}
-                            rightIcon={<ArrowRight size={20} />}
-                        >
-                            Get Lucid
-                        </Button>
+                        {/* Paywall Overlay Card */}
+                        <div className="absolute inset-0 -top-4 -bottom-4 flex flex-col items-center justify-center text-center p-6 bg-background/60 backdrop-blur-md border border-accent-primary/20 rounded-2xl shadow-2xl">
+                            <div className="w-12 h-12 bg-accent-primary/20 rounded-full flex items-center justify-center mb-4 text-accent-primary">
+                                <Lock size={24} />
+                            </div>
+                            <h3 className="text-xl font-bold text-foreground mb-2">
+                                Unlock Your Full Profile
+                            </h3>
+                            <p className="text-foreground-secondary text-sm mb-6 max-w-xs">
+                                See your scores across all 10 dimensions, get your personalized growth roadmap, and start working with Lucid AI.
+                            </p>
 
+                            <Button
+                                size="lg"
+                                className="w-full mb-3 animate-pulse-soft"
+                                onClick={handleUnlock}
+                            >
+                                Unlock Full Results — $12/mo
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Secondary Actions */}
+                    <div className="space-y-3">
                         <button
                             onClick={() => {
-                                // TODO: Implement share
-                                navigator.share?.({
-                                    title: 'My Lucid Score',
-                                    text: `I scored ${result.scores.overall} — "${result.archetype}". What's yours?`,
-                                    url: 'https://getlucid.app',
-                                }).catch(() => { });
+                                if (navigator.share) {
+                                    navigator.share({
+                                        title: 'My Lucid Score',
+                                        text: `I scored ${result.scores.overall} — "${result.archetype}". What's yours?`,
+                                        url: 'https://getlucid.app',
+                                    }).catch(() => { });
+                                }
                             }}
-                            className="w-full py-3 text-accent-primary text-sm font-medium hover:underline"
+                            className="w-full py-3 flex items-center justify-center gap-2 text-foreground-secondary hover:text-foreground transition-colors border border-border rounded-xl"
                         >
-                            Share Your Results
+                            <Share2 size={18} />
+                            Share Score
                         </button>
-                    </motion.div>
+
+                        <button
+                            onClick={handleMaybeLater}
+                            className="w-full py-3 text-foreground-tertiary text-sm hover:text-foreground-secondary transition-colors"
+                        >
+                            Maybe Later
+                        </button>
+                    </div>
                 </div>
             </div>
         );

@@ -6,8 +6,11 @@ export const MOCK_LUCID_SCORE = {
     growthOrientation: 71,
     emotionalRegulation: 42,
     innerDialogue: 61,
-    archetype: 'The Overthinker',
-    archetypeDescription: "You see everything clearly — except the exit from your own head.",
+    confidence: 65,
+    discipline: 45,
+    presence: 50,
+    authenticity: 70,
+    purposeClarity: 60,
 };
 
 export const MOCK_USER_PROFILE = {
@@ -54,8 +57,8 @@ export const MOCK_POSTS = [
     },
     {
         id: '3',
-        authorId: 'cc',
-        authorName: 'CC',
+        authorId: 'lucid',
+        authorName: 'Lucid',
         authorAvatar: null,
         level: 10,
         isPinned: true,

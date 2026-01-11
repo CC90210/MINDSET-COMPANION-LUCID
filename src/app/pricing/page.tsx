@@ -29,7 +29,7 @@ const plans = [
     {
         id: 'premium',
         name: 'Premium',
-        price: '$19',
+        price: '$12',
         period: '/month',
         description: 'Unlock your full potential',
         features: [
@@ -53,7 +53,7 @@ const coaching = {
     description: 'Transform with personalized guidance',
     features: [
         'Everything in Premium',
-        '60-minute call with CC',
+        '60-minute call with Lucid',
         'Personalized action plan',
         'Follow-up support',
         'Priority community access',

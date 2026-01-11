@@ -19,6 +19,11 @@ export interface UserContext {
         growthOrientation: number;
         emotionalRegulation: number;
         innerDialogue: number;
+        confidence: number;
+        discipline: number;
+        presence: number;
+        authenticity: number;
+        purposeClarity: number;
         overall: number;
     };
     archetype?: string;
@@ -97,11 +102,11 @@ export async function generateCCResponse(
             history: [
                 {
                     role: 'user',
-                    parts: [{ text: 'You are CC, the AI companion in Lucid. Here is your complete system context and personality guide:\n\n' + systemPrompt }],
+                    parts: [{ text: 'You are Lucid, the AI companion. Here is your complete system context and personality guide:\n\n' + systemPrompt }],
                 },
                 {
                     role: 'model',
-                    parts: [{ text: `Got it. I'm CC in Lucid. Ready to help ${userContext.name || 'this person'} get lucid. What's on their mind?` }],
+                    parts: [{ text: `Got it. I'm Lucid. Ready to help ${userContext.name || 'this person'} get lucid. What's on their mind?` }],
                 },
                 ...history.slice(0, -1), // Don't include the current message in history
             ],

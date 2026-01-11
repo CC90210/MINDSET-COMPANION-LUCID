@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { LucidIcon } from '@/components/ui/LucidIcon';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,10 +73,10 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
                 className="text-center mb-8"
             >
                 <motion.div
-                    className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center"
+                    className="mx-auto mb-4"
                     whileHover={{ scale: 1.05 }}
                 >
-                    <span className="text-2xl font-bold text-white">CC</span>
+                    <LucidIcon size={64} className="mx-auto" />
                 </motion.div>
                 <h1 className="text-2xl font-bold text-foreground">
                     {mode === 'signin' ? 'Welcome back' : 'Join the journey'}

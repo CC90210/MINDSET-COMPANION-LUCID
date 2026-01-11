@@ -137,6 +137,11 @@ export interface LucidScores {
   growthOrientation: number;
   emotionalRegulation: number;
   innerDialogue: number;
+  confidence: number;
+  discipline: number;
+  presence: number;
+  authenticity: number;
+  purposeClarity: number;
   overall: number;
 }
 
@@ -144,7 +149,10 @@ export type MindsetArchetype =
   | 'The Overthinker'
   | 'The Grinder'
   | 'The Reactor'
+  | 'The Performer'
+  | 'The Drifter'
   | 'The Dormant'
+  | 'The Phoenix'
   | 'The Integrated';
 
 export interface UserProfile {
